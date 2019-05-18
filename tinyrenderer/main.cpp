@@ -1,5 +1,6 @@
 #include <vector>
 #include <cmath>
+#include <limits>
 #include "tgaimage.h"
 #include "geometry.h"
 #include "model.h"
@@ -7,7 +8,7 @@
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
 const TGAColor green = TGAColor(0, 255, 0, 255);
-Model *model = NULL;
+const TGAColor blue = TGAColor(0, 0, 255, 255);
 const int width = 800;
 const int height = 800;
 
@@ -61,34 +62,57 @@ void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 	}
 }
 
+void rasterize(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color, int ybuffer[]) {
+	if (p0.x > p1.x) {
+		std::swap(p0, p1);
+	}
+	for (int x = p0.x; x <= p1.x; x++) {
+		float t = (x - p0.x) / (float)(p1.x - p0.x);
+		int y = p0.y * (1. - t) + p1.y * t + .5;
+		if (ybuffer[x] < y) {
+			ybuffer[x] = y;
+			image.set(x, 0, color);
+		}
+	}
+}
+
 int main(int argc, char** argv) {
-	if (2 == argc) {
-		model = new Model(argv[1]);
-	}
-	else {
-		model = new Model("obj/african_head.obj");
+
+	{ 
+		TGAImage scene(width, height, TGAImage::RGB);
+
+		// scene "2d mesh"
+		line(Vec2i(20, 34), Vec2i(744, 400), scene, red);
+		line(Vec2i(120, 434), Vec2i(444, 400), scene, green);
+		line(Vec2i(330, 463), Vec2i(594, 200), scene, blue);
+
+		// screen line
+		line(Vec2i(10, 10), Vec2i(790, 10), scene, white);
+
+		scene.flip_vertically(); // set origin at bottom-left
+		scene.write_tga_file("scene.tga");
 	}
 
-	TGAImage image(width, height, TGAImage::RGB);
-	Vec3f light_dir(0, 0, -1);
-	for (int i = 0; i < model->nfaces(); i++) {
-		std::vector<int> face = model->face(i);
-		Vec2i screen_coords[3];
-		Vec3f world_coords[3];
-		for (int j = 0; j < 3; j++) {
-			Vec3f v = model->vert(face[j]);
-			screen_coords[j] = Vec2i((v.x + 1.)*width / 2., (v.y + 1.)*height / 2.);
-			world_coords[j] = v;
+	{
+		TGAImage render(width, 16, TGAImage::RGB);
+		int ybuffer[width];
+		for (int i = 0; i < width; i++) {
+			ybuffer[i] = std::numeric_limits<int>::min();
 		}
-		Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
-		n.normalize();
-		float intensity = n * light_dir;
-		if (intensity > 0) {
-			triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+		rasterize(Vec2i(20, 34), Vec2i(744, 400), render, red, ybuffer);
+		rasterize(Vec2i(120, 434), Vec2i(444, 400), render, green, ybuffer);
+		rasterize(Vec2i(330, 463), Vec2i(594, 200), render, blue, ybuffer);
+
+		// widen the image
+		for (int i = 0; i < width; i++) {
+			for (int j = 1; j < 16; j++) {
+				render.set(i, j, render.get(i, 0));
+			}
 		}
+
+		render.flip_vertically(); // set origin at bottom-left
+		render.write_tga_file("render.tga");
 	}
 
-	image.flip_vertically(); // set origin at bottom-left
-	image.write_tga_file("output.tga");
 	return 0;
 }

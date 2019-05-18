@@ -41,9 +41,12 @@ void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
 }
 
 void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
-	line(t0, t1, image, color);
-	line(t1, t2, image, color);
-	line(t2, t0, image, color);
+	if (t0.y > t1.y) std::swap(t0, t1);
+	if (t0.y > t2.y) std::swap(t0, t2);
+	if (t1.y > t2.y) std::swap(t1, t2);
+	line(t0, t1, image, green);
+	line(t1, t2, image, green);
+	line(t2, t0, image, red);
 }
 
 int main(int argc, char** argv) {

@@ -74,11 +74,18 @@ int main(int argc, char** argv) {
 	for (int i = 0; i < model->nfaces(); i++) {
 		std::vector<int> face = model->face(i);
 		Vec2i screen_coords[3];
+		Vec3f world_coords[3];
 		for (int j = 0; j < 3; j++) {
-			Vec3f world_coords = model->vert(face[j]);
-			screen_coords[j] = Vec2i((world_coords.x + 1.)*width / 2., (world_coords.y + 1.)*height / 2.);
+			Vec3f v = model->vert(face[j]);
+			screen_coords[j] = Vec2i((v.x + 1.)*width / 2., (v.y + 1.)*height / 2.);
+			world_coords[j] = v;
 		}
-		triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(rand() % 255, rand() % 255, rand() % 255, 255));
+		Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
+		n.normalize();
+		float intensity = n * light_dir;
+		if (intensity > 0) {
+			triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+		}
 	}
 
 	image.flip_vertically(); // set origin at bottom-left
